@@ -1,0 +1,8 @@
+#st-cbp-bound-profile-label {
+    margin-top: 4px;
+}
+
+/* SillyTavern .hidden only sets visibility; collapse the slot on create/group menus. */
+#st-cbp-bound-profile-label.hidden {
+    display: none !important;
+}

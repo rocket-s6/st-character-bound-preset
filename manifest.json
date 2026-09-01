@@ -1,0 +1,17 @@
+{
+    "display_name": "Character Bound Profile",
+    "loading_order": 10,
+    "requires": [],
+    "optional": [],
+    "dependencies": ["connection-manager"],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Rocket",
+    "version": "1.0.0",
+    "minimum_client_version": "1.12.6",
+    "homePage": "https://github.com/rocket-s6/st-character-bound-preset",
+    "auto_update": false,
+    "hooks": {
+        "activate": "init"
+    }
+}
