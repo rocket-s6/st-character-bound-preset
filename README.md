@@ -36,3 +36,7 @@ Open Extensions tab in SillyTavern, click Install Extension, and past this URL i
 - **Group chats:** Opening the group does not change the profile. When a member is drafted to speak, that member's bound profile is applied if one is set; otherwise the current profile is left as-is.
 
 If the bound profile no longer exists on this SillyTavern instance, a warning is shown and the current connection is not changed. Recipients of an exported card need a connection profile with the same **name**.
+
+###Licence
+
+Do whatever you want with it.
