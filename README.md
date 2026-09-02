@@ -37,6 +37,6 @@ Open Extensions tab in SillyTavern, click Install Extension, and past this URL i
 
 If the bound profile no longer exists on this SillyTavern instance, a warning is shown and the current connection is not changed. Recipients of an exported card need a connection profile with the same **name**.
 
-###Licence
+### Licence
 
 Do whatever you want with it.
