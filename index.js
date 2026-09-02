@@ -9,6 +9,8 @@ const CONNECT_TIMEOUT_MS = 20000;
 let suppressSelectChange = false;
 /** @type {Promise<void>} */
 let applyQueue = Promise.resolve();
+/** @type {boolean} */
+let statusFetchCoalescerInstalled = false;
 
 /**
  * @returns {ReturnType<typeof SillyTavern.getContext>}
@@ -199,10 +201,78 @@ async function onBoundProfileChange() {
 }
 
 /**
+ * Reuse one in-flight chat-completion status check per request body so
+ * /profile's overlapping reconnects do not each download the OpenRouter catalog.
+ */
+function installStatusFetchCoalescer() {
+    if (statusFetchCoalescerInstalled) {
+        return;
+    }
+    statusFetchCoalescerInstalled = true;
+
+    const originalFetch = window.fetch.bind(window);
+    /** @type {Map<string, Promise<{buffer: ArrayBuffer, status: number, statusText: string, headers: Headers}>>} */
+    const inflight = new Map();
+
+    window.fetch = (input, init) => {
+        const url = typeof input === 'string'
+            ? input
+            : (input instanceof URL ? input.href : input?.url);
+        if (!url || !String(url).includes('/api/backends/chat-completions/status')) {
+            return originalFetch(input, init);
+        }
+
+        const key = typeof init?.body === 'string' ? init.body : 'status';
+        const existing = inflight.get(key);
+        if (existing) {
+            return existing.then(toStatusResponse);
+        }
+
+        const pending = originalFetch(input, init).then(async (response) => {
+            const buffer = await response.arrayBuffer();
+            return {
+                buffer,
+                status: response.status,
+                statusText: response.statusText,
+                headers: new Headers(response.headers),
+            };
+        }).finally(() => {
+            inflight.delete(key);
+        });
+
+        inflight.set(key, pending);
+        return pending.then(toStatusResponse);
+    };
+}
+
+/**
+ * @param {{buffer: ArrayBuffer, status: number, statusText: string, headers: Headers}} saved
+ * @returns {Response}
+ */
+function toStatusResponse(saved) {
+    return new Response(saved.buffer.slice(0), {
+        status: saved.status,
+        statusText: saved.statusText,
+        headers: saved.headers,
+    });
+}
+
+/**
  * @returns {boolean}
  */
 function isApiConnected() {
     return getCtx().onlineStatus !== 'no_connection';
+}
+
+/**
+ * @returns {boolean}
+ */
+function isStatusCheckInProgress() {
+    if (document.querySelector('.api_button.disabled')) {
+        return true;
+    }
+    const loading = document.querySelector('.api_loading');
+    return !!(loading && window.getComputedStyle(loading).display !== 'none');
 }
 
 /**
@@ -262,11 +332,22 @@ function triggerApiConnect() {
  * @returns {Promise<boolean>}
  */
 async function ensureApiConnected() {
-    if (await waitForApiConnection(1500)) {
+    if (isApiConnected()) {
         return true;
     }
 
-    triggerApiConnect();
+    if (isStatusCheckInProgress()) {
+        return waitForApiConnection(CONNECT_TIMEOUT_MS);
+    }
+
+    if (await waitForApiConnection(400)) {
+        return true;
+    }
+
+    if (!isApiConnected() && !isStatusCheckInProgress()) {
+        triggerApiConnect();
+    }
+
     const connected = await waitForApiConnection(CONNECT_TIMEOUT_MS);
     if (!connected) {
         console.warn(`[${MODULE_NAME}] API did not connect after bound profile apply`);
@@ -372,6 +453,7 @@ function setupUi() {
 }
 
 export function init() {
+    installStatusFetchCoalescer();
     setupUi();
 
     const { eventSource, eventTypes } = getCtx();
