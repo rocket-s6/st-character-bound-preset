@@ -1,5 +1,9 @@
 # Character Bound Profile
 
+
+https://github.com/user-attachments/assets/e7faf245-5400-42f9-9fd1-ce23e9305868
+
+
 SillyTavern extension that binds a [connection profile](https://docs.sillytavern.app/usage/core-concepts/connection-profiles/) to a character card. Selecting a character automatically switches to the connection profile bound to that character. This includes everything from API to the Model used to the Chat Completion Preset.
 
 This works in group chats too, automatically switching between profiles whenever a character is about to speak in the group chat. This will be add a slight amount of latency on each switch because the /profile switch has an inbuilt delay.
