@@ -4,7 +4,12 @@ SillyTavern extension that binds a [connection profile](https://docs.sillytavern
 
 ## Install
 
-Copy this folder to `public/scripts/extensions/third-party/st-character-bound-preset/` (Install for all users) or install it as a third-party extension. Requires the built-in **Connection Profiles** extension to be enabled.
+Go to `SillyTavern/public/scripts/extensions/third-party/` and run 
+`git clone https://github.com/rocket-s6/st-character-bound-preset`
+
+OR
+
+Open Extensions tab in SillyTavern, click Install Extension, and past this URL in the box: `https://github.com/rocket-s6/st-character-bound-preset`
 
 ## Usage
 
