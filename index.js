@@ -3,11 +3,12 @@ const FIELD_KEY = 'bound_connection_profile';
 const SELECT_ID = 'st-cbp-bound-profile';
 const LABEL_ID = 'st-cbp-bound-profile-label';
 const NONE_LABEL = 'Bound profile';
+const CONNECT_TIMEOUT_MS = 20000;
 
 /** @type {boolean} */
 let suppressSelectChange = false;
-/** @type {boolean} */
-let applyingProfile = false;
+/** @type {Promise<void>} */
+let applyQueue = Promise.resolve();
 
 /**
  * @returns {ReturnType<typeof SillyTavern.getContext>}
@@ -198,10 +199,97 @@ async function onBoundProfileChange() {
 }
 
 /**
+ * @returns {boolean}
+ */
+function isApiConnected() {
+    return getCtx().onlineStatus !== 'no_connection';
+}
+
+/**
+ * @param {number} timeoutMs
+ * @returns {Promise<boolean>}
+ */
+async function waitForApiConnection(timeoutMs = CONNECT_TIMEOUT_MS) {
+    if (isApiConnected()) {
+        return true;
+    }
+
+    const { eventSource, eventTypes } = getCtx();
+
+    return await new Promise((resolve) => {
+        let settled = false;
+        const finish = (ok) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            clearInterval(pollId);
+            clearTimeout(timeoutId);
+            eventSource.removeListener(eventTypes.ONLINE_STATUS_CHANGED, onStatus);
+            resolve(ok);
+        };
+        const onStatus = (status) => {
+            if (status && status !== 'no_connection') {
+                finish(true);
+            }
+        };
+        const pollId = setInterval(() => {
+            if (isApiConnected()) {
+                finish(true);
+            }
+        }, 100);
+        const timeoutId = setTimeout(() => finish(isApiConnected()), timeoutMs);
+        eventSource.on(eventTypes.ONLINE_STATUS_CHANGED, onStatus);
+    });
+}
+
+function triggerApiConnect() {
+    const ctx = getCtx();
+    const buttonIds = ctx.mainApi === 'openai'
+        ? ['api_button_openai']
+        : ['api_button', 'api_button_textgenerationwebui', 'api_button_kobold', 'api_button_novel'];
+
+    for (const id of buttonIds) {
+        const button = document.getElementById(id);
+        if (button) {
+            button.click();
+            return;
+        }
+    }
+}
+
+/**
+ * @returns {Promise<boolean>}
+ */
+async function ensureApiConnected() {
+    if (await waitForApiConnection(1500)) {
+        return true;
+    }
+
+    triggerApiConnect();
+    const connected = await waitForApiConnection(CONNECT_TIMEOUT_MS);
+    if (!connected) {
+        console.warn(`[${MODULE_NAME}] API did not connect after bound profile apply`);
+    }
+    return connected;
+}
+
+/**
  * @param {object} [character]
  * @returns {Promise<void>}
  */
-async function applyBoundProfileForCharacter(character) {
+function applyBoundProfileForCharacter(character) {
+    applyQueue = applyQueue.then(() => applyBoundProfileForCharacterImpl(character)).catch((error) => {
+        console.error(`[${MODULE_NAME}] Bound profile apply failed`, error);
+    });
+    return applyQueue;
+}
+
+/**
+ * @param {object} [character]
+ * @returns {Promise<void>}
+ */
+async function applyBoundProfileForCharacterImpl(character) {
     const binding = getBinding(character);
     if (!binding) {
         return;
@@ -215,24 +303,23 @@ async function applyBoundProfileForCharacter(character) {
 
     const selectedId = getCtx().extensionSettings?.connectionManager?.selectedProfile;
     if (selectedId === profile.id) {
+        await ensureApiConnected();
         return;
     }
 
-    if (applyingProfile) {
-        return;
-    }
-
-    applyingProfile = true;
     try {
         await getCtx().executeSlashCommandsWithOptions(
-            `/profile await=true ${quoteSlashArg(profile.name)}`,
+            `/profile await=true timeout=0 ${quoteSlashArg(profile.name)}`,
             { handleExecutionErrors: true, source: MODULE_NAME },
         );
     } catch (error) {
         console.error(`[${MODULE_NAME}] Failed to apply bound profile`, error);
         toastr.warning(`Failed to apply bound connection profile: ${profile.name}`);
-    } finally {
-        applyingProfile = false;
+    }
+
+    const connected = await ensureApiConnected();
+    if (!connected) {
+        toastr.warning(`Bound connection profile applied, but API did not connect: ${profile.name}`);
     }
 }
 
