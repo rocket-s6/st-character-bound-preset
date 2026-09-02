@@ -15,6 +15,9 @@ Open Extensions tab in SillyTavern, click Install Extension, and past this URL i
 
 ## Usage
 
+<img width="631" height="580" alt="image" src="https://github.com/user-attachments/assets/3da36ee6-c6fb-4ad9-bf76-e09cf6ccbffe" />
+
+
 1. Open a character in the Character Management panel.
 2. Use the **Bound profile** dropdown under **More...** to pick a connection profile, or leave it on **Bound profile** for none.
 3. The binding is stored on the character card (`data.extensions.bound_connection_profile`) and is included when you export the card.
