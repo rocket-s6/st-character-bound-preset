@@ -1,6 +1,10 @@
 # Character Bound Profile
 
 
+
+https://github.com/user-attachments/assets/a7c61e58-8d10-40e2-b87b-df586e69f702
+
+
 https://github.com/user-attachments/assets/e7faf245-5400-42f9-9fd1-ce23e9305868
 
 
